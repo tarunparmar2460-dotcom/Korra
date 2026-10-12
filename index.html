@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Korra - Real Social Community</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #0c0f12; color: #ffffff; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        .app-container { width: 100%; max-width: 400px; height: 100%; background-color: #12161c; position: relative; display: flex; flex-direction: column; box-shadow: 0 0 25px rgba(0,0,0,0.9); }
+        .screen { display: none; flex: 1; overflow-y: auto; padding-bottom: 60px; }
+        .screen.active { display: flex; flex-direction: column; }
+        .app-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #222; font-size: 16px; font-weight: bold; }
+        .auth-screen { justify-content: center; align-items: center; padding: 25px; text-align: center; }
+        .app-logo { width: 70px; height: 70px; background: #ffffff; color: #0c0f12; font-size: 40px; font-weight: bold; display: flex; justify-content: center; align-items: center; border-radius: 16px; margin: 0 auto 20px auto; }
+        .form-group { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+        .input-box { position: relative; width: 100%; }
+        .form-group input { width: 100%; background: #1c232d; border: 1px solid #333; padding: 12px 40px 12px 12px; border-radius: 8px; color: #fff; outline: none; }
+        .input-box i.fa-eye, .input-box i.fa-eye-slash { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #888; cursor: pointer; }
+        .btn-primary { background: #fff; color: #000; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; }
+        .auth-link { margin-top: 15px; font-size: 13px; color: #0084ff; cursor: pointer; }
+        .stories-container { display: flex; gap: 12px; padding: 10px 15px; border-bottom: 1px solid #222; overflow-x: auto; }
+        .story-ring { width: 62px; height: 62px; border-radius: 50%; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); display: flex; justify-content: center; align-items: center; cursor: pointer; flex-shrink: 0; }
+        .story-ring img { width: 58px; height: 58px; border-radius: 50%; border: 2px solid #12161c; object-fit: cover; }
+        .post-header { display: flex; align-items: center; padding: 10px 15px; gap: 10px; }
+        .post-header img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+        .post-img img { width: 100%; max-height: 350px; object-fit: cover; }
+        .post-actions { padding: 10px 15px; display: flex; gap: 15px; font-size: 20px; cursor: pointer; }
+        .post-actions i.liked { color: #ff3b30; }
+        .post-details { padding: 0 15px 12px 15px; font-size: 13px; }
+        .profile-info { display: flex; align-items: center; padding: 20px; gap: 20px; }
+        .profile-pic img { width: 75px; height: 75px; border-radius: 50%; object-fit: cover; }
+        .profile-stats { display: flex; gap: 15px; font-size: 13px; text-align: center; cursor: pointer; }
+        .profile-bio { padding: 0 20px 15px 20px; font-size: 13px; }
+        .profile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+        .grid-item img { width: 100%; height: 110px; object-fit: cover; }
+        .chat-header-user { display: flex; align-items: center; gap: 10px; }
+        .chat-header-actions { display: flex; gap: 18px; font-size: 18px; cursor: pointer; color: #0084ff; }
+        .chat-body { flex: 1; padding: 15px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+        .chat-bubble { padding: 10px 14px; border-radius: 12px; max-width: 75%; font-size: 14px; }
+        .chat-bubble.received { background: #1c232d; align-self: flex-start; }
+        .chat-bubble.sent { background: #0084ff; align-self: flex-end; }
+        .chat-footer { padding: 10px; display: flex; gap: 10px; border-top: 1px solid #222; }
+        .chat-footer input { flex: 1; background: #1c232d; border: none; padding: 10px; border-radius: 20px; color: #fff; outline: none; }
+        .settings-list { padding: 10px 0; }
+        .setting-item { padding: 15px 20px; display: flex; align-items: center; gap: 15px; font-size: 14px; border-bottom: 1px solid #1a212b; cursor: pointer; }
+        .list-item { padding: 12px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #1a212b; font-size: 14px; }
+        .bottom-nav { position: absolute; bottom: 0; width: 100%; height: 55px; background: #12161c; border-top: 1px solid #222; display: flex; justify-content: space-around; align-items: center; font-size: 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 1. LOGIN SCREEN -->
+        <div id="login-screen" class="screen active auth-screen">
+            <div class="app-logo">k</div>
+            <h2>Log In to Korra</h2>
+            <div class="form-group" style="margin-top: 20px;">
+                <input type="email" id="login-email" placeholder="Email">
+                <div class="input-box">
+                    <input type="password" id="login-pass" placeholder="Password">
+                    <i class="fa-solid fa-eye" onclick="togglePassword('login-pass', this)"></i>
+                </div>
+                <button class="btn-primary" onclick="loginUser()">Log In</button>
+            </div>
+            <p class="auth-link" onclick="showScreen('signup-step1')">Don't have an account? Sign up</p>
+            <p class="auth-link" onclick="showScreen('forgot-screen')" style="color: #888; margin-top: 5px;">Forgot Password?</p>
+        </div>
+
+        <!-- 2. SIGN UP STEP 1 -->
+        <div id="signup-step1" class="screen auth-screen">
+            <h2>Create Korra Account</h2>
+            <div class="form-group">
+                <input type="text" id="reg-name" placeholder="Full Name">
+                <input type="email" id="reg-email" placeholder="Email Address">
+                <button class="btn-primary" onclick="sendVerificationCode()">Send Code</button>
+            </div>
+            <p class="auth-link" onclick="showScreen('login-screen')">Back to Login</p>
+        </div>
+
+        <!-- 3. SIGN UP STEP 2 -->
+        <div id="signup-step2" class="screen auth-screen">
+            <h2>Set Password</h2>
+            <div class="form-group">
+                <input type="text" placeholder="Enter Code (123456)" id="verification-code" style="text-align: center; letter-spacing: 3px;">
+                <div class="input-box">
+                    <input type="password" id="reg-pass" placeholder="Create Password">
+                    <i class="fa-solid fa-eye" onclick="togglePassword('reg-pass', this)"></i>
+                </div>
+                <button class="btn-primary" onclick="registerUser()">Confirm & Register</button>
+            </div>
+        </div>
+
+        <!-- 4. FORGOT PASSWORD -->
+        <div id="forgot-screen" class="screen auth-screen">
+            <h2>Reset Password</h2>
+            <div class="form-group">
+                <input type="email" id="reset-email" placeholder="Enter email">
+                <button class="btn-primary" onclick="forgotPassword()">Send Reset Link</button>
+            </div>
+            <p class="auth-link" onclick="showScreen('login-screen')">Back to Login</p>
+        </div>
+
+        <!-- 5. FEED SCREEN -->
+        <div id="feed-screen" class="screen">
+            <header class="app-header"><h2>Korra</h2><i class="fa-regular fa-paper-plane" onclick="showScreen('chat-screen')"></i></header>
+            <div class="stories-container">
+                <div class="story-ring"><img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb"></div>
+            </div>
+            <div class="feed-post">
+                <div class="post-header">
+                    <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb" alt="User">
+                    <span style="font-weight: bold; font-size: 14px;">adventureseeker123</span>
+                    <button style="margin-left: auto; background: #0084ff; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer;" onclick="toggleFollow(this)">Follow</button>
+                </div>
+                <div class="post-img"><img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb" alt="Post"></div>
+                <div class="post-actions">
+                    <i class="fa-regular fa-heart" onclick="toggleLike(this)" style="cursor: pointer;"></i>
+                    <i class="fa-regular fa-comment" onclick="openComments()" style="cursor: pointer;"></i>
+                </div>
+                <div class="post-details">
+                    <div style="font-weight: bold; margin-bottom: 3px;">1,245 likes</div>
+                    <div><span style="font-weight: bold;">adventureseeker123</span> Exploring nature peaks! 🏔️</div>
+                    <div style="color: #888; font-size: 12px; margin-top: 5px; cursor: pointer;" onclick="openComments()">View all 48 comments</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. SEARCH SCREEN -->
+        <div id="search-screen" class="screen">
+            <header class="app-header"><h2>Search Explore</h2></header>
+            <div style="padding: 10px 15px;">
+                <input type="text" placeholder="Search users, tags..." style="width: 100%; background: #1c232d; border: 1px solid #333; padding: 10px; border-radius: 8px; color: #fff; outline: none;">
+            </div>
+            <div class="list-item"><i class="fa-solid fa-user-circle" style="font-size: 28px;"></i><div><strong>alex_explorer</strong><div style="font-size: 12px; color: #888;">Alex Turner</div></div></div>
+            <div class="list-item"><i class="fa-solid fa-user-circle" style="font-size: 28px;"></i><div><strong>nature_lover</strong><div style="font-size: 12px; color: #888;">Priya Sharma</div></div></div>
+        </div>
+
+        <!-- 7. NOTIFICATIONS SCREEN (Heart Icon) -->
+        <div id="notification-screen" class="screen">
+            <header class="app-header"><h2>Notifications</h2></header>
+            <div class="list-item"><i class="fa-solid fa-heart" style="color: #ff3b30;"></i><span><strong>adventureseeker123</strong> liked your post. <span style="color: #888; font-size: 11px;">2h</span></span></div>
+            <div class="list-item"><i class="fa-solid fa-user-plus" style="color: #0084ff;"></i><span><strong>nature_lover</strong> started following you. <span style="color: #888; font-size: 11px;">5h</span></span></div>
+        </div>
+
+        <!-- 8. COMMENTS SCREEN -->
+        <div id="comments-screen" class="screen">
+            <header class="app-header">
+                <i class="fa-solid fa-arrow-left" onclick="showScreen('feed-screen')" style="cursor: pointer;"></i>
+                <h2>Comments</h2>
+                <div></div>
+            </header>
+            <div class="chat-body" id="comments-container">
+                <div class="chat-bubble received"><strong>adventureseeker123:</strong> Amazing click! 🔥</div>
+                <div class="chat-bubble received"><strong>nature_lover:</strong> Beautiful landscape!</div>
+            </div>
+            <div class="chat-footer">
+                <input type="text" id="comment-input" placeholder="Add a comment...">
+                <i class="fa-solid fa-paper-plane" style="color: #0084ff; font-size: 20px; align-self: center; cursor: pointer;" onclick="postComment()"></i>
+            </div>
+        </div>
+
+        <!-- 9. FOLLOWERS / FOLLOWING LIST SCREEN -->
+        <div id="follow-list-screen" class="screen">
+            <header class="app-header">
+                <i class="fa-solid fa-arrow-left" onclick="showScreen('profile-screen')" style="cursor: pointer;"></i>
+                <h2 id="follow-list-title">Connections</h2>
+                <div></div>
+            </header>
+            <div class="list-item"><img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb" style="width:35px; height:35px; border-radius:50%;"><div><strong>adventureseeker123</strong><div style="font-size: 12px; color: #888;">Active Now</div></div><button style="margin-left:auto; background:#2b3544; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:12px;" onclick="toggleFollow(this)">Following</button></div>
+            <div class="list-item"><img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e" style="width:35px; height:35px; border-radius:50%;"><div><strong>nature_lover</strong><div style="font-size: 12px; color: #888;">New follower</div></div><button style="margin-left:auto; background:#0084ff; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:12px;" onclick="toggleFollow(this)">Follow Back</button></div>
+        </div>
+
+        <!-- 10. CHAT SCREEN -->
+        <div id="chat-screen" class="screen">
+            <header class="app-header">
+                <div class="chat-header-user"><i class="fa-solid fa-arrow-left" onclick="showScreen('feed-screen')" style="cursor: pointer; margin-right: 5px;"></i><span>AdventureSeeker123</span></div>
+                <div class="chat-header-actions"><i class="fa-solid fa-phone" onclick="startCall('Audio')"></i><i class="fa-solid fa-video" onclick="startCall('Video')"></i></div>
+            </header>
+            <div class="chat-body"><div class="chat-bubble received">Hey! Welcome to Korra.</div></div>
+            <div class="chat-footer"><input type="text" placeholder="Message..."><i class="fa-solid fa-paper-plane" style="color: #0084ff;"></i></div>
+        </div>
+
+        <!-- 11. PROFILE SCREEN -->
+        <div id="profile-screen" class="screen">
+            <header class="app-header"><h2 id="profile-username-display">korra_user</h2><i class="fa-solid fa-gear" onclick="showScreen('settings-screen')"></i></header>
+            <div class="profile-info">
+                <div class="profile-pic"><img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb"></div>
+                <div class="profile-stats">
+                    <div><strong>12</strong>posts</div>
+                    <div onclick="showFollowList('Followers')"><strong>450</strong>followers</div>
+                    <div onclick="showFollowList('Following')"><strong>180</strong>following</div>
+                </div>
+            </div>
+            <div class="profile-bio"><p style="font-weight: bold;" id="profile-name-display">Korra Creator ✨</p></div>
+            <div class="profile-grid">
+                <div class="grid-item"><img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb"></div>
+                <div class="grid-item"><img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e"></div>
+                <div class="grid-item"><img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470"></div>
+            </div>
+        </div>
+
+        <!-- 12. SETTINGS SCREEN -->
+        <div id="settings-screen" class="screen">
+            <header class="app-header"><i class="fa-solid fa-arrow-left" onclick="showScreen('profile-screen')"></i><h2>Settings</h2></header>
+            <div class="settings-list">
+                <div class="setting-item" onclick="logoutUser()" style="color: #ff4d4d;"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log Out</div>
+            </div>
+        </div>
+
+        <!-- BOTTOM NAVIGATION -->
+        <nav class="bottom-nav">
+            <i class="fa-solid fa-house" onclick="showScreen('feed-screen')"></i>
+            <i class="fa-solid fa-magnifying-glass" onclick="showScreen('search-screen')"></i>
+            <i class="fa-solid fa-square-plus" onclick="alert('Post creation ready.')"></i>
+            <i class="fa-solid fa-heart" onclick="showScreen('notification-screen')"></i>
+            <i class="fa-solid fa-user" onclick="showScreen('profile-screen')"></i>
+        </nav>
+    </div>
+        <script>
+        window.showScreen = function(screenId) {
+            const screens = document.querySelectorAll('.screen');
+            screens.forEach(screen => screen.classList.remove('active'));
+            const target = document.getElementById(screenId);
+            if(target) target.classList.add('active');
+        };
+
+        window.togglePassword = function(inputId, icon) {
+            const inputField = document.getElementById(inputId);
+            if (inputField) {
+                if (inputField.type === "password") {
+                    inputField.type = "text";
+                    icon.classList.remove("fa-eye");
+                    icon.classList.add("fa-eye-slash");
+                } else {
+                    inputField.type = "password";
+                    icon.classList.remove("fa-eye-slash");
+                    icon.classList.add("fa-eye");
+                }
+            }
+        };
+
+        window.sendVerificationCode = function() {
+            const email = document.getElementById('reg-email').value;
+            if(!email) { alert("Please enter email."); return; }
+            alert("Verification code (123456) sent to " + email);
+            window.showScreen('signup-step2');
+        };
+
+        window.registerUser = function() {
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-pass').value;
+            const code = document.getElementById('verification-code').value;
+            const name = document.getElementById('reg-name').value;
+
+            if(code !== "123456") { alert("Invalid code! Enter 123456."); return; }
+
+            auth.createUserWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+                db.collection("users").doc(userCredential.user.uid).set({ name, email, createdAt: new Date() })
+                .then(() => { alert("Account registered successfully!"); window.showScreen('login-screen'); });
+            })
+            .catch((error) => { alert("Error: " + error.message); });
+        };
+
+        window.loginUser = function() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-pass').value;
+            auth.signInWithEmailAndPassword(email, password)
+            .then(() => { alert("Login successful!"); window.showScreen('feed-screen'); })
+            .catch((error) => { alert("Error: " + error.message); });
+        };
+
+        window.forgotPassword = function() {
+            const email = document.getElementById('reset-email').value;
+            if(!email) { alert("Enter email."); return; }
+            auth.sendPasswordResetEmail(email)
+            .then(() => { alert("Reset link sent!"); window.showScreen('login-screen'); })
+            .catch((error) => { alert("Error: " + error.message); });
+        };
+
+        window.logoutUser = function() {
+            auth.signOut().then(() => { alert("Logged out."); window.showScreen('login-screen'); });
+        };
+
+        window.toggleFollow = function(btn) {
+            if (btn.innerText === "Follow" || btn.innerText === "Follow Back") {
+                btn.innerText = "Following";
+                btn.style.background = "transparent";
+                btn.style.color = "#888";
+                btn.style.border = "1px solid #444";
+            } else {
+                btn.innerText = "Follow";
+                btn.style.background = "#0084ff";
+                btn.style.color = "#fff";
+                btn.style.border = "none";
+            }
+        };
+
+        window.toggleLike = function(icon) {
+            icon.classList.toggle('fa-regular');
+            icon.classList.toggle('fa-solid');
+            icon.classList.toggle('liked');
+        };
+
+        window.openComments = function() {
+            window.showScreen('comments-screen');
+        };
+
+        window.postComment = function() {
+            const input = document.getElementById('comment-input');
+            const val = input.value.trim();
+            if(val) {
+                const container = document.getElementById('comments-container');
+                const bubble = document.createElement('div');
+                bubble.className = "chat-bubble received";
+                bubble.innerHTML = `<strong>You:</strong> ${val}`;
+                container.appendChild(bubble);
+                input.value = "";
+                container.scrollTop = container.scrollHeight;
+            }
+        };
+
+        window.showFollowList = function(type) {
+            document.getElementById('follow-list-title').innerText = type;
+            window.showScreen('follow-list-screen');
+        };
+
+        window.startCall = function(type) {
+            alert(`Connecting ${type} Call...`);
+        };
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD6MVbt8OIu-grAyVKkSyv_kqah8xUY6AY",
+            authDomain: "korra-b0b37.firebaseapp.com",
+            projectId: "korra-b0b37",
+            storageBucket: "korra-b0b37.firebasestorage.app",
+            messagingSenderId: "954510005406",
+            appId: "1:954510006406:web:5ec961003c75201b52d78f",
+            measurementId: "G-PVLJEPVLZG"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+    </script>
+</body>
+</html>
